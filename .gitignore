@@ -32,6 +32,4 @@ desktop.ini
 *.class
 hs_err_pid*
 
-# Local data (CSV/JSON runtime)
-data/
-*.tmp
+
