@@ -1,7 +1,9 @@
-<<<<<<< HEAD
 # Sơ đồ lớp (UML) — Personal Expense Manager
 
 Tài liệu mô tả quan hệ OOP theo đặc tả thiết kế.
+
+> File này dùng cú pháp Mermaid. Khi xem trên GitHub, sơ đồ sẽ tự động được render —
+> không cần cài thêm công cụ nào.
 
 ## Kế thừa (Inheritance)
 
@@ -60,107 +62,7 @@ MainController (JavaFX) -->  (FXML + AppView / ExpenseManager)
 | Đa hình | `getSignedAmount()`, `printInfo()`, `withdraw()`, `Storage.save/load` |
 | Trừu tượng | `Transaction`, `Wallet` (abstract); `Storage` (interface) |
 
-## Mermaid (tham khảo)
-
-```mermaid
-classDiagram
-  direction TB
-
-  class Transaction {
-    <<abstract>>
-    -id: String
-    -amount: double
-    -date: LocalDate
-    -note: String
-    -category: Category
-    -wallet: Wallet
-    +getType()* TransactionType
-    +getSignedAmount()* double
-    +printInfo()
-  }
-
-  class Income {
-    -source: String
-  }
-  class Expense {
-    -paymentMethod: String
-  }
-  class RecurringExpense {
-    -period: Period
-    +nextDueDate() LocalDate
-  }
-
-  Transaction <|-- Income
-  Transaction <|-- Expense
-  Expense <|-- RecurringExpense
-
-  class Wallet {
-    <<abstract>>
-    -name: String
-    -balance: double
-    +deposit(amount)
-    +withdraw(amount)
-    +getWalletType()* WalletType
-  }
-  class CashWallet
-  class BankAccount {
-    -bankName: String
-    -accountNumber: String
-  }
-  class EWallet {
-    -provider: String
-  }
-
-  Wallet <|-- CashWallet
-  Wallet <|-- BankAccount
-  Wallet <|-- EWallet
-
-  class Category {
-    -name: String
-    -type: TransactionType
-  }
-  class Budget {
-    -category: Category
-    -limit: double
-    -period: Period
-    +isExceeded(spent) boolean
-  }
-
-  class Storage {
-    <<interface>>
-    +save(transactions, path)
-    +load(path) List~Transaction~
-  }
-  class CsvStorage
-  class JsonStorage
-  Storage <|.. CsvStorage
-  Storage <|.. JsonStorage
-
-  class ExpenseManager {
-    -transactions: List
-    -wallets: List
-    -categories: List
-    -budgets: Map
-    -storage: Storage
-    +monthlySummary()
-    +statisticsByCategory()
-  }
-
-  Transaction --> Category
-  Transaction --> Wallet
-  Budget --> Category
-  ExpenseManager o--> Storage
-  ExpenseManager *--> Transaction
-  ExpenseManager *--> Wallet
-  ExpenseManager *--> Category
-  ExpenseManager *--> Budget
-```
-=======
-# Sơ đồ lớp (Class Diagram) — Personal Expense Manager
-
-> File này dùng cú pháp Mermaid. Nếu đặt trong repo GitHub (đuôi `.md`), GitHub sẽ tự
-> động render thành sơ đồ khi xem file trên web — không cần cài thêm công cụ nào.
-> Có thể để nguyên file này trong repo, hoặc copy khối code bên dưới vào README.md.
+## Sơ đồ Mermaid
 
 ```mermaid
 classDiagram
@@ -331,7 +233,19 @@ classDiagram
         +run() void
     }
 
+    class AppView {
+        -ExpenseManager expenseManager
+        +bind() void
+        +getExpenseManager() ExpenseManager
+    }
+
+    class MainController {
+        -Label welcomeLabel
+        +initialize() void
+    }
+
     ConsoleView --> ExpenseManager : sử dụng
+    AppView --> ExpenseManager : sử dụng
 ```
 
 ## Chú thích ký hiệu quan hệ
@@ -345,9 +259,8 @@ classDiagram
 
 ## Cách dùng cho bài nộp
 
-1. Commit file `class-diagram.md` này vào thư mục gốc hoặc `docs/` của repo.
+1. Commit file `class-diagram.md` này trong thư mục `docs/` của repo.
 2. Xem trực tiếp trên GitHub (web) — Mermaid sẽ tự render thành hình.
-3. Nếu cần ảnh tĩnh (PNG/SVG) để dán vào báo cáo Word/PDF, mở file này trên
-   [Mermaid Live Editor](https://mermaid.live), dán nội dung trong khối ```mermaid```,
-   rồi export ra PNG/SVG.
->>>>>>> d490f574385e112b2927f10a23b129acfaae3ed7
+3. Nếu cần ảnh tĩnh (PNG/SVG) để dán vào báo cáo Word/PDF, mở
+   [Mermaid Live Editor](https://mermaid.live), dán nội dung khối `mermaid` ở trên,
+   rồi export ra PNG/SVG. Bản PNG sẵn có: `docs/class-diagram.png`.

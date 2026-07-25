@@ -5,56 +5,40 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.example</groupId>
-<<<<<<< HEAD
   <artifactId>personal-expense-manager</artifactId>
   <version>1.0-SNAPSHOT</version>
+  <name>PersonalExpenseManager</name>
   <description>Personal Expense Manager — JavaFX + OOP skeleton</description>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
-    <javafx.version>21.0.2</javafx.version>
+    <javafx.version>21.0.6</javafx.version>
+    <junit.version>5.12.1</junit.version>
   </properties>
-=======
-  <artifactId>PersonalExpenseManager</artifactId>
-  <version>1.0-SNAPSHOT</version>
-  <name>PersonalExpenseManager</name>
-
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-<junit.version>5.12.1</junit.version>  </properties>
->>>>>>> d490f574385e112b2927f10a23b129acfaae3ed7
 
   <dependencies>
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-controls</artifactId>
-<<<<<<< HEAD
       <version>${javafx.version}</version>
-=======
-      <version>21.0.6</version>
->>>>>>> d490f574385e112b2927f10a23b129acfaae3ed7
     </dependency>
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-fxml</artifactId>
-<<<<<<< HEAD
       <version>${javafx.version}</version>
     </dependency>
-  </dependencies>
-=======
-      <version>21.0.6</version>
-    </dependency>
-<dependency>
+    <dependency>
       <groupId>org.controlsfx</groupId>
       <artifactId>controlsfx</artifactId>
       <version>11.2.1</version>
-    </dependency><dependency>
+    </dependency>
+    <dependency>
       <groupId>org.kordamp.ikonli</groupId>
       <artifactId>ikonli-javafx</artifactId>
       <version>12.3.1</version>
     </dependency>
-<dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
       <version>${junit.version}</version>
@@ -65,8 +49,8 @@
       <artifactId>junit-jupiter-engine</artifactId>
       <version>${junit.version}</version>
       <scope>test</scope>
-    </dependency>  </dependencies>
->>>>>>> d490f574385e112b2927f10a23b129acfaae3ed7
+    </dependency>
+  </dependencies>
 
   <build>
     <plugins>
@@ -74,33 +58,17 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
-<<<<<<< HEAD
-=======
-        <configuration>
-          <source>8</source>
-          <target>8</target>
-        </configuration>
->>>>>>> d490f574385e112b2927f10a23b129acfaae3ed7
       </plugin>
       <plugin>
         <groupId>org.openjfx</groupId>
         <artifactId>javafx-maven-plugin</artifactId>
         <version>0.0.8</version>
-<<<<<<< HEAD
-        <configuration>
-          <mainClass>com.example.personalexpensemanager/com.example.personalexpensemanager.Launcher</mainClass>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
-</project>
-=======
         <executions>
           <execution>
             <!-- Default configuration for running with: mvn clean javafx:run -->
             <id>default-cli</id>
             <configuration>
-              <mainClass>com.example.personalexpensemanager/com.example.personalexpensemanager.HelloApplication</mainClass>
+              <mainClass>com.example.personalexpensemanager/com.example.personalexpensemanager.Launcher</mainClass>
               <launcher>app</launcher>
               <jlinkZipName>app</jlinkZipName>
               <jlinkImageName>app</jlinkImageName>
@@ -114,4 +82,3 @@
     </plugins>
   </build>
 </project>
->>>>>>> d490f574385e112b2927f10a23b129acfaae3ed7
