@@ -16,18 +16,23 @@ public abstract class Transaction {
   private Category category;
   private Wallet wallet;
 
-  protected Transaction() {
-    // TODO: khởi tạo mặc định
-  }
-
-  protected Transaction(
-      String id,
-      double amount,
-      LocalDate date,
-      String note,
-      Category category,
-      Wallet wallet) {
-    // TODO: gán field + kiểm tra amount >= 0
+  protected Transaction(String id, double amount, LocalDate date, String note,
+                        Category category, Wallet wallet) {
+    if (amount < 0) {
+      throw new IllegalArgumentException("Amount cannot be negative");
+    }
+    if (date == null) {
+      throw new IllegalArgumentException("Date cannot be null");
+    }
+    if (wallet == null) {
+      throw new IllegalArgumentException("Wallet cannot be null");
+    }
+    this.id = id;
+    this.amount = amount;
+    this.date = date;
+    this.note = note;
+    this.category = category;
+    this.wallet = wallet;
   }
 
   /** Trả về loại giao dịch (INCOME / EXPENSE). */
@@ -41,55 +46,45 @@ public abstract class Transaction {
 
   /** In thông tin giao dịch ra console (đa hình theo lớp con). */
   public void printInfo() {
-    // TODO: in thông tin chung; lớp con có thể override
+    System.out.printf("[%s] %s | %,.0f VND | %s | %s%n",
+            getType(), date, getSignedAmount(), category, note);
   }
 
-  public String getId() {
-    return id;
-  }
+  public String getId() { return id; }
 
-  public void setId(String id) {
-    // TODO
-  }
-
-  public double getAmount() {
-    return amount;
-  }
+  public double getAmount() { return amount; }
 
   /** Đặt số tiền; cần validate không âm. */
   public void setAmount(double amount) {
-    // TODO: chặn amount < 0
+    if (amount < 0) {
+      throw new IllegalArgumentException("Amount cannot be negative");
+    }
+    this.amount = amount;
   }
 
-  public LocalDate getDate() {
-    return date;
-  }
+  public LocalDate getDate() { return date; }
 
   public void setDate(LocalDate date) {
-    // TODO
+    if (date == null) {
+      throw new IllegalArgumentException("Date cannot be null");
+    }
+    this.date = date;
   }
 
-  public String getNote() {
-    return note;
-  }
+  public String getNote() { return note; }
 
-  public void setNote(String note) {
-    // TODO
-  }
+  public void setNote(String note) { this.note = note; }
 
-  public Category getCategory() {
-    return category;
-  }
+  public Category getCategory() { return category; }
 
-  public void setCategory(Category category) {
-    // TODO
-  }
+  public void setCategory(Category category) { this.category = category; }
 
-  public Wallet getWallet() {
-    return wallet;
-  }
+  public Wallet getWallet() { return wallet; }
 
   public void setWallet(Wallet wallet) {
-    // TODO
+    if (wallet == null) {
+      throw new IllegalArgumentException("Wallet cannot be null");
+    }
+    this.wallet = wallet;
   }
 }

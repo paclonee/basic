@@ -11,16 +11,19 @@ public abstract class Wallet {
   private String name;
   private double balance;
 
-  protected Wallet() {
-    // TODO
-  }
-
   protected Wallet(String name, double balance) {
-    // TODO: validate balance >= 0
+    if (balance < 0) {
+      throw new IllegalArgumentException("Balance cannot be negative");
+    }
+    this.name = name;
+    this.balance = balance;
   }
 
   public void deposit(double amount) {
-    // TODO: cộng số dư nếu amount > 0
+    if (amount < 0) {
+      throw new IllegalArgumentException("Deposit amount cannot be negative");
+    }
+    balance += amount;
   }
 
   /**
@@ -28,7 +31,13 @@ public abstract class Wallet {
    * (phí, hạn mức, ...).
    */
   public void withdraw(double amount) {
-    // TODO: trừ số dư nếu đủ tiền
+    if (amount < 0) {
+      throw new IllegalArgumentException("Withdraw amount cannot be negative");
+    }
+    if (amount > balance) {
+      throw new IllegalStateException("Insufficient balance in wallet: " + name);
+    }
+    balance -= amount;
   }
 
   /** Trả về loại ví (CASH / BANK / EWALLET). */
@@ -39,7 +48,7 @@ public abstract class Wallet {
   }
 
   public void setName(String name) {
-    // TODO
+    this.name = name;
   }
 
   public double getBalance() {
@@ -47,7 +56,7 @@ public abstract class Wallet {
   }
 
   /** Đặt số dư; cần validate không âm. */
-  public void setBalance(double balance) {
+  //public void setBalance(double balance) {
     // TODO: chặn balance < 0
-  }
+  //}
 }
