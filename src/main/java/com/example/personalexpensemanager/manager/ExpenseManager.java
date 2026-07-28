@@ -27,7 +27,28 @@ public class ExpenseManager {
   }
 
   public ExpenseManager(Storage storage) {
-    // TODO
+    this.transactionStorage = transactionStorage;
+  }
+
+  /** Gọi lúc khởi động app, sau khi đã load cả transactions.json lẫn wallets.json. */
+  public void loadData(String transactionPath, String walletPath) throws IOException {
+    this.transactions = transactionStorage.load(transactionPath);
+    this.wallets = loadWallets(walletPath); // tương tự, qua 1 Storage<Wallet> riêng nếu bạn tách ra
+
+    resolveWallets(); // <-- bước "nối lại" ví thật nằm ở đây
+  }
+
+  /** Gán lại đúng đối tượng Wallet thật cho từng Transaction, thay vì
+   *  wallet tạm (placeholder) mà TransactionJsonAdapter tạo lúc deserialize. */
+  private void resolveWallets() {
+    Map<String, Wallet> byName = wallets.stream()
+            .collect(Collectors.toMap(Wallet::getName, w -> w));
+    for (Transaction tx : transactions) {
+      Wallet realWallet = byName.get(tx.getWallet().getName());
+      if (realWallet != null) {
+        tx.setWallet(realWallet);
+      }
+    }
   }
 
   // --- Transaction ---
