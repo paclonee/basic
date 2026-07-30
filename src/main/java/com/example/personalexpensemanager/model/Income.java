@@ -8,10 +8,6 @@ public class Income extends Transaction {
 
   private String source;
 
-  public Income() {
-    // TODO
-  }
-
   public Income(
       String id,
       double amount,
@@ -20,24 +16,24 @@ public class Income extends Transaction {
       Category category,
       Wallet wallet,
       String source) {
-    // TODO
+    super(id, amount, date, note, category, wallet);
+    this.source = source;
   }
 
   @Override
   public TransactionType getType() {
-    // TODO: return TransactionType.INCOME
-    return null;
+    return TransactionType.INCOME;
   }
 
   @Override
   public double getSignedAmount() {
-    // TODO: return +amount
-    return 0;
+    return getAmount();
   }
 
   @Override
   public void printInfo() {
-    // TODO: in thêm nguồn thu
+    super.printInfo();
+    System.out.println("       Nguồn thu: " + (source == null ? "-" : source));
   }
 
   public String getSource() {
@@ -45,6 +41,6 @@ public class Income extends Transaction {
   }
 
   public void setSource(String source) {
-    // TODO
+    this.source = source;
   }
 }

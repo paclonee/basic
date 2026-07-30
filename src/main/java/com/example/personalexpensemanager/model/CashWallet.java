@@ -6,16 +6,15 @@ import com.example.personalexpensemanager.enums.WalletType;
 public class CashWallet extends Wallet {
 
   public CashWallet() {
-    // TODO
+    super("Ví tiền mặt", 0);
   }
 
   public CashWallet(String name, double balance) {
-    // TODO
+    super(name, balance);
   }
 
   @Override
   public WalletType getWalletType() {
-    // TODO: return WalletType.CASH
-    return null;
+    return WalletType.CASH;
   }
 }

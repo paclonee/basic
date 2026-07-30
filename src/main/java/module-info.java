@@ -5,6 +5,8 @@ module com.example.personalexpensemanager {
   requires org.controlsfx.controls;
   requires org.kordamp.ikonli.javafx;
 
+  requires com.google.gson;
+
   opens com.example.personalexpensemanager to javafx.fxml;
   opens com.example.personalexpensemanager.controller to javafx.fxml;
 

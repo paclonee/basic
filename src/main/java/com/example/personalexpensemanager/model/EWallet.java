@@ -8,17 +8,17 @@ public class EWallet extends Wallet {
   private String provider;
 
   public EWallet() {
-    // TODO
+    super("Ví điện tử", 0);
   }
 
   public EWallet(String name, double balance, String provider) {
-    // TODO
+    super(name, balance);
+    this.provider = provider;
   }
 
   @Override
   public WalletType getWalletType() {
-    // TODO: return WalletType.EWALLET
-    return null;
+    return WalletType.EWALLET;
   }
 
   public String getProvider() {
@@ -26,6 +26,6 @@ public class EWallet extends Wallet {
   }
 
   public void setProvider(String provider) {
-    // TODO
+    this.provider = provider;
   }
 }

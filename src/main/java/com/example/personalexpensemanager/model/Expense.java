@@ -8,10 +8,6 @@ public class Expense extends Transaction {
 
   private String paymentMethod;
 
-  public Expense() {
-    // TODO
-  }
-
   public Expense(
       String id,
       double amount,
@@ -20,24 +16,24 @@ public class Expense extends Transaction {
       Category category,
       Wallet wallet,
       String paymentMethod) {
-    // TODO
+    super(id, amount, date, note, category, wallet);
+    this.paymentMethod = paymentMethod;
   }
 
   @Override
   public TransactionType getType() {
-    // TODO: return TransactionType.EXPENSE
-    return null;
+    return TransactionType.EXPENSE;
   }
 
   @Override
   public double getSignedAmount() {
-    // TODO: return -amount
-    return 0;
+    return -getAmount();
   }
 
   @Override
   public void printInfo() {
-    // TODO: in thêm phương thức thanh toán
+    super.printInfo();
+    System.out.println("       Thanh toán: " + (paymentMethod == null ? "-" : paymentMethod));
   }
 
   public String getPaymentMethod() {
@@ -45,6 +41,6 @@ public class Expense extends Transaction {
   }
 
   public void setPaymentMethod(String paymentMethod) {
-    // TODO
+    this.paymentMethod = paymentMethod;
   }
 }

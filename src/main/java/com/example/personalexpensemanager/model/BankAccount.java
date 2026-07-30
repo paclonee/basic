@@ -10,24 +10,31 @@ public class BankAccount extends Wallet {
 
   private String bankName;
   private String accountNumber;
+  private double transactionFee;
 
   public BankAccount() {
-    // TODO
+    super("Tài khoản ngân hàng", 0);
   }
 
   public BankAccount(String name, double balance, String bankName, String accountNumber) {
-    // TODO
+    super(name, balance);
+    this.bankName = bankName;
+    this.accountNumber = accountNumber;
   }
 
   @Override
   public WalletType getWalletType() {
-    // TODO: return WalletType.BANK
-    return null;
+    return WalletType.BANK;
   }
 
+  /**
+   * Rút tiền có kèm phí giao dịch: số bị trừ vào số dư là {@code amount + phí}.
+   * Phí mặc định bằng 0 nên hành vi giống ví thường cho tới khi được cấu hình
+   * qua {@link #setTransactionFee(double)}.
+   */
   @Override
   public void withdraw(double amount) {
-    // TODO: có thể trừ thêm phí giao dịch / kiểm tra hạn mức
+    super.withdraw(amount + transactionFee);
   }
 
   public String getBankName() {
@@ -35,7 +42,7 @@ public class BankAccount extends Wallet {
   }
 
   public void setBankName(String bankName) {
-    // TODO
+    this.bankName = bankName;
   }
 
   public String getAccountNumber() {
@@ -43,6 +50,17 @@ public class BankAccount extends Wallet {
   }
 
   public void setAccountNumber(String accountNumber) {
-    // TODO
+    this.accountNumber = accountNumber;
+  }
+
+  public double getTransactionFee() {
+    return transactionFee;
+  }
+
+  public void setTransactionFee(double transactionFee) {
+    if (transactionFee < 0) {
+      throw new IllegalArgumentException("Phí giao dịch không được âm");
+    }
+    this.transactionFee = transactionFee;
   }
 }

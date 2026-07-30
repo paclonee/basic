@@ -1,6 +1,9 @@
 package com.example.personalexpensemanager.storage;
 
+import static com.example.personalexpensemanager.storage.JsonFields.optionalString;
+
 import com.example.personalexpensemanager.enums.Period;
+import com.example.personalexpensemanager.enums.TransactionType;
 import com.example.personalexpensemanager.model.*;
 import com.google.gson.*;
 import java.lang.reflect.Type;
@@ -23,7 +26,7 @@ public class TransactionJsonAdapter implements JsonSerializer<Transaction>, Json
         obj.addProperty("amount", tx.getAmount());
         obj.addProperty("date", tx.getDate().format(DATE_FORMAT));
         obj.addProperty("note", tx.getNote());
-        obj.addProperty("category", tx.getCategory());
+        obj.add("category", serializeCategory(tx.getCategory()));
         obj.addProperty("walletName", tx.getWallet().getName());
 
         if (tx instanceof RecurringExpense re) {
@@ -36,6 +39,8 @@ public class TransactionJsonAdapter implements JsonSerializer<Transaction>, Json
         } else if (tx instanceof Income inc) {
             obj.addProperty("kind", "INCOME");
             obj.addProperty("source", inc.getSource());
+        } else {
+            throw new JsonIOException("Chưa hỗ trợ ghi JSON cho lớp " + tx.getClass().getName());
         }
         return obj;
     }
@@ -46,8 +51,8 @@ public class TransactionJsonAdapter implements JsonSerializer<Transaction>, Json
         String id = obj.get("id").getAsString();
         double amount = obj.get("amount").getAsDouble();
         LocalDate date = LocalDate.parse(obj.get("date").getAsString(), DATE_FORMAT);
-        String note = obj.has("note") ? obj.get("note").getAsString() : null;
-        String category = obj.has("category") ? obj.get("category").getAsString() : null;
+        String note = optionalString(obj, "note");
+        Category category = deserializeCategory(obj.get("category"));
         String walletName = obj.get("walletName").getAsString();
 
         // Ví chỉ phục hồi tạm bằng tên (balance = 0); ExpenseManager sẽ gán lại
@@ -57,12 +62,30 @@ public class TransactionJsonAdapter implements JsonSerializer<Transaction>, Json
         String kind = obj.get("kind").getAsString();
         return switch (kind) {
             case "INCOME" -> new Income(id, amount, date, note, category, placeholderWallet,
-                    obj.get("source").getAsString());
+                    optionalString(obj, "source"));
             case "EXPENSE" -> new Expense(id, amount, date, note, category, placeholderWallet,
-                    obj.get("paymentMethod").getAsString());
+                    optionalString(obj, "paymentMethod"));
             case "RECURRING_EXPENSE" -> new RecurringExpense(id, amount, date, note, category, placeholderWallet,
-                    obj.get("paymentMethod").getAsString(), Period.valueOf(obj.get("period").getAsString()));
+                    optionalString(obj, "paymentMethod"), Period.valueOf(obj.get("period").getAsString()));
             default -> throw new JsonParseException("Unknown transaction kind: " + kind);
         };
+    }
+
+    /** Category phải ghi thành object {name, type} vì cần cả hai để dựng lại. */
+    private static JsonObject serializeCategory(Category category) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("name", category.getName());
+        obj.addProperty("type", category.getType().name());
+        return obj;
+    }
+
+    private static Category deserializeCategory(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            throw new JsonParseException("Giao dịch trong file JSON thiếu danh mục");
+        }
+        JsonObject obj = element.getAsJsonObject();
+        return new Category(
+                obj.get("name").getAsString(),
+                TransactionType.valueOf(obj.get("type").getAsString()));
     }
 }

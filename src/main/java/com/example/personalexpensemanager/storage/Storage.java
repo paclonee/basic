@@ -1,18 +1,19 @@
 package com.example.personalexpensemanager.storage;
 
-import com.example.personalexpensemanager.model.Transaction;
-import java.util.List;
 import java.io.IOException;
+import java.util.List;
 
 /**
- * Hợp đồng lưu trữ giao dịch (CSV / JSON, ...).
+ * Hợp đồng lưu trữ một loại dữ liệu (CSV / JSON, ...).
  * Triển khai cụ thể quyết định định dạng file.
+ *
+ * @param <T> loại đối tượng được lưu, ví dụ Transaction hoặc Wallet
  */
-public interface Storage {
+public interface Storage<T> {
 
-  /** Ghi danh sách giao dịch ra đường dẫn {@code path}. */
-  void save(List<Transaction> transactions, String path) throws IOException;
+  /** Ghi danh sách đối tượng ra đường dẫn {@code path}. */
+  void save(List<T> items, String path) throws IOException;
 
-  /** Đọc danh sách giao dịch từ đường dẫn {@code path}. */
-  List<Transaction> load(String path) throws IOException;
+  /** Đọc danh sách đối tượng từ đường dẫn {@code path}. */
+  List<T> load(String path) throws IOException;
 }

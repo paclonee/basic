@@ -12,18 +12,12 @@ public abstract class Wallet {
   private double balance;
 
   protected Wallet(String name, double balance) {
-    if (balance < 0) {
-      throw new IllegalArgumentException("Balance cannot be negative");
-    }
-    this.name = name;
-    this.balance = balance;
+    this.name = requireValidName(name);
+    this.balance = requireNonNegative(balance, "Số dư");
   }
 
   public void deposit(double amount) {
-    if (amount < 0) {
-      throw new IllegalArgumentException("Deposit amount cannot be negative");
-    }
-    balance += amount;
+    balance += requirePositive(amount, "Số tiền nạp");
   }
 
   /**
@@ -31,13 +25,11 @@ public abstract class Wallet {
    * (phí, hạn mức, ...).
    */
   public void withdraw(double amount) {
-    if (amount < 0) {
-      throw new IllegalArgumentException("Withdraw amount cannot be negative");
+    double value = requirePositive(amount, "Số tiền rút");
+    if (value > balance) {
+      throw new IllegalStateException("Số dư không đủ trong ví: " + name);
     }
-    if (amount > balance) {
-      throw new IllegalStateException("Insufficient balance in wallet: " + name);
-    }
-    balance -= amount;
+    balance -= value;
   }
 
   /** Trả về loại ví (CASH / BANK / EWALLET). */
@@ -48,15 +40,41 @@ public abstract class Wallet {
   }
 
   public void setName(String name) {
-    this.name = name;
+    this.name = requireValidName(name);
   }
 
   public double getBalance() {
     return balance;
   }
 
-  /** Đặt số dư; cần validate không âm. */
-  //public void setBalance(double balance) {
-    // TODO: chặn balance < 0
-  //}
+  // Cố tình không mở setBalance ra ngoài: số dư chỉ được đổi qua deposit/withdraw
+  // để mọi thay đổi đều đi qua validate. Lớp con muốn số dư ban đầu thì
+  // truyền qua constructor.
+
+  @Override
+  public String toString() {
+    return String.format("%s: %,.0f VND", name, balance);
+  }
+
+  /** Tên ví là khoá tra cứu ví trong ExpenseManager nên không được rỗng. */
+  private static String requireValidName(String name) {
+    if (name == null || name.isBlank()) {
+      throw new IllegalArgumentException("Tên ví không được để trống");
+    }
+    return name.trim();
+  }
+
+  private static double requireNonNegative(double value, String field) {
+    if (value < 0) {
+      throw new IllegalArgumentException(field + " không được âm");
+    }
+    return value;
+  }
+
+  private static double requirePositive(double value, String field) {
+    if (value <= 0) {
+      throw new IllegalArgumentException(field + " phải lớn hơn 0");
+    }
+    return value;
+  }
 }

@@ -8,10 +8,6 @@ public class RecurringExpense extends Expense {
 
   private Period period;
 
-  public RecurringExpense() {
-    // TODO
-  }
-
   public RecurringExpense(
       String id,
       double amount,
@@ -21,18 +17,25 @@ public class RecurringExpense extends Expense {
       Wallet wallet,
       String paymentMethod,
       Period period) {
-    // TODO
+    super(id, amount, date, note, category, wallet, paymentMethod);
+    this.period = requirePeriod(period);
   }
 
   /** Tính ngày đến hạn tiếp theo dựa trên {@link #period}. */
   public LocalDate nextDueDate() {
-    // TODO: cộng chu kỳ vào date hiện tại
-    return null;
+    LocalDate from = getDate();
+    return switch (period) {
+      case DAILY -> from.plusDays(1);
+      case WEEKLY -> from.plusWeeks(1);
+      case MONTHLY -> from.plusMonths(1);
+      case YEARLY -> from.plusYears(1);
+    };
   }
 
   @Override
   public void printInfo() {
-    // TODO: in thêm chu kỳ
+    super.printInfo();
+    System.out.println("       Định kỳ: " + period + " | đến hạn tiếp: " + nextDueDate());
   }
 
   public Period getPeriod() {
@@ -40,6 +43,13 @@ public class RecurringExpense extends Expense {
   }
 
   public void setPeriod(Period period) {
-    // TODO
+    this.period = requirePeriod(period);
+  }
+
+  private static Period requirePeriod(Period period) {
+    if (period == null) {
+      throw new IllegalArgumentException("Chu kỳ không được để trống");
+    }
+    return period;
   }
 }
