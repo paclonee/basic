@@ -25,6 +25,15 @@ public abstract class Wallet {
    * (phí, hạn mức, ...).
    */
   public void withdraw(double amount) {
+    withdrawExact(amount);
+  }
+
+  /**
+   * Trừ đúng {@code amount} khỏi số dư, bỏ qua mọi phụ phí của lớp con.
+   * ExpenseManager dùng hàm này để số dư ví luôn khớp với tổng các giao dịch,
+   * và để hoàn tác được chính xác khi xoá hoặc sửa giao dịch.
+   */
+  public final void withdrawExact(double amount) {
     double value = requirePositive(amount, "Số tiền rút");
     if (value > balance) {
       throw new IllegalStateException("Số dư không đủ trong ví: " + name);

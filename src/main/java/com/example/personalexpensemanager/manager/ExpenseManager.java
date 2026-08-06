@@ -1,5 +1,6 @@
 package com.example.personalexpensemanager.manager;
 
+import com.example.personalexpensemanager.enums.Period;
 import com.example.personalexpensemanager.enums.TransactionType;
 import com.example.personalexpensemanager.model.Budget;
 import com.example.personalexpensemanager.model.Category;
@@ -7,16 +8,26 @@ import com.example.personalexpensemanager.model.Transaction;
 import com.example.personalexpensemanager.model.Wallet;
 import com.example.personalexpensemanager.storage.Storage;
 import java.io.IOException;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.function.Predicate;
 
 /**
  * Lớp điều phối nghiệp vụ: quản lý giao dịch, ví, danh mục, ngân sách
  * và persistence qua {@link Storage}.
+ *
+ * <p>Số dư ví luôn đi kèm danh sách giao dịch: thêm một khoản chi thì tiền bị
+ * trừ khỏi ví ngay, xoá thì hoàn lại, sửa thì hoàn khoản cũ rồi áp khoản mới.
+ * Nhờ vậy tổng số dư mọi ví luôn giải thích được bằng các giao dịch đã ghi.
  */
 public class ExpenseManager {
 
@@ -36,49 +47,102 @@ public class ExpenseManager {
     this.walletStorage = walletStorage;
   }
 
-  // --- Transaction ---
+  // --- Giao dịch: Thêm / Xoá / Sửa / Tìm ---
 
+  /**
+   * Thêm giao dịch và cập nhật số dư ví. Nếu ví không đủ tiền cho khoản chi thì
+   * ném lỗi và danh sách giao dịch giữ nguyên như trước khi gọi.
+   */
   public void addTransaction(Transaction transaction) {
+    requireNewTransaction(transaction);
+    applyToWallet(transaction);
+    transactions.add(transaction);
+  }
+
+  /** Xoá giao dịch và hoàn lại phần tiền nó đã cộng / trừ vào ví. */
+  public void removeTransaction(String id) {
+    Transaction transaction = findTransaction(id);
+    if (transaction == null) {
+      return;
+    }
+    revertFromWallet(transaction);
+    transactions.remove(transaction);
+  }
+
+  /**
+   * Thay giao dịch cũ bằng bản mới cùng mã: hoàn tác ảnh hưởng của bản cũ lên ví
+   * rồi áp bản mới. Nếu bản mới làm ví âm thì bản cũ được khôi phục nguyên trạng.
+   */
+  public void updateTransaction(Transaction transaction) {
+    if (transaction == null) {
+      throw new IllegalArgumentException("Giao dịch không được để trống");
+    }
+    int index = indexOfTransaction(transaction.getId());
+    if (index < 0) {
+      throw new IllegalArgumentException("Không tìm thấy giao dịch có mã " + transaction.getId());
+    }
+    Transaction current = transactions.get(index);
+    revertFromWallet(current);
+    try {
+      applyToWallet(transaction);
+    } catch (RuntimeException e) {
+      applyToWallet(current);
+      throw e;
+    }
+    transactions.set(index, transaction);
+  }
+
+  public Transaction findTransaction(String id) {
+    int index = indexOfTransaction(id);
+    return index < 0 ? null : transactions.get(index);
+  }
+
+  /**
+   * Cộng / trừ tiền ví theo đúng số tiền của giao dịch. Dùng withdrawExact thay vì
+   * withdraw để phí của {@code BankAccount} không làm số dư lệch khỏi tổng giao
+   * dịch; muốn tính phí thì ghi phí thành một giao dịch chi riêng.
+   */
+  private void applyToWallet(Transaction transaction) {
+    Wallet wallet = transaction.getWallet();
+    if (transaction.getType() == TransactionType.INCOME) {
+      wallet.deposit(transaction.getAmount());
+    } else {
+      wallet.withdrawExact(transaction.getAmount());
+    }
+  }
+
+  /** Phép nghịch đảo chính xác của {@link #applyToWallet(Transaction)}. */
+  private void revertFromWallet(Transaction transaction) {
+    Wallet wallet = transaction.getWallet();
+    if (transaction.getType() == TransactionType.INCOME) {
+      wallet.withdrawExact(transaction.getAmount());
+    } else {
+      wallet.deposit(transaction.getAmount());
+    }
+  }
+
+  private void requireNewTransaction(Transaction transaction) {
     if (transaction == null) {
       throw new IllegalArgumentException("Giao dịch không được để trống");
     }
     if (findTransaction(transaction.getId()) != null) {
       throw new IllegalArgumentException("Đã tồn tại giao dịch có mã " + transaction.getId());
     }
-    transactions.add(transaction);
   }
 
-  public void removeTransaction(String id) {
-    transactions.removeIf(tx -> tx.getId().equals(id));
-  }
-
-  /** Thay giao dịch cũ bằng bản mới có cùng mã. */
-  public void updateTransaction(Transaction transaction) {
-    if (transaction == null) {
-      throw new IllegalArgumentException("Giao dịch không được để trống");
+  private int indexOfTransaction(String id) {
+    if (id == null) {
+      return -1;
     }
     for (int i = 0; i < transactions.size(); i++) {
-      if (transactions.get(i).getId().equals(transaction.getId())) {
-        transactions.set(i, transaction);
-        return;
+      if (transactions.get(i).getId().equals(id)) {
+        return i;
       }
     }
-    throw new IllegalArgumentException("Không tìm thấy giao dịch có mã " + transaction.getId());
+    return -1;
   }
 
-  public Transaction findTransaction(String id) {
-    if (id == null) {
-      return null;
-    }
-    for (Transaction tx : transactions) {
-      if (tx.getId().equals(id)) {
-        return tx;
-      }
-    }
-    return null;
-  }
-
-  // --- Wallet ---
+  // --- Ví: Thêm / Xoá / Sửa / Tìm ---
 
   public void addWallet(Wallet wallet) {
     if (wallet == null) {
@@ -105,6 +169,19 @@ public class ExpenseManager {
     wallets.remove(wallet);
   }
 
+  /** Đổi tên ví. Giao dịch giữ tham chiếu tới ví nên tự động theo tên mới. */
+  public void renameWallet(String oldName, String newName) {
+    Wallet wallet = findWallet(oldName);
+    if (wallet == null) {
+      throw new IllegalArgumentException("Không tìm thấy ví tên " + oldName);
+    }
+    Wallet duplicate = findWallet(newName);
+    if (duplicate != null && duplicate != wallet) {
+      throw new IllegalArgumentException("Đã tồn tại ví tên " + newName);
+    }
+    wallet.setName(newName);
+  }
+
   public Wallet findWallet(String name) {
     if (name == null) {
       return null;
@@ -117,7 +194,7 @@ public class ExpenseManager {
     return null;
   }
 
-  // --- Category ---
+  // --- Danh mục: Thêm / Xoá / Sửa / Tìm ---
 
   public void addCategory(Category category) {
     if (category == null) {
@@ -147,6 +224,26 @@ public class ExpenseManager {
     categories.remove(category);
   }
 
+  /**
+   * Đổi tên danh mục. Phải gỡ ngân sách khỏi map trước khi đổi tên: tên nằm trong
+   * hashCode của {@link Category} nên sửa tại chỗ sẽ làm entry cũ không tra lại được.
+   */
+  public void renameCategory(String oldName, String newName) {
+    Category category = findCategory(oldName);
+    if (category == null) {
+      throw new IllegalArgumentException("Không tìm thấy danh mục " + oldName);
+    }
+    Category duplicate = findCategory(newName);
+    if (duplicate != null && duplicate != category) {
+      throw new IllegalArgumentException("Đã tồn tại danh mục " + newName);
+    }
+    Budget budget = budgets.remove(category);
+    category.setName(newName);
+    if (budget != null) {
+      budgets.put(category, budget);
+    }
+  }
+
   public Category findCategory(String name) {
     if (name == null) {
       return null;
@@ -159,7 +256,7 @@ public class ExpenseManager {
     return null;
   }
 
-  // --- Budget ---
+  // --- Ngân sách ---
 
   public void setBudget(Category category, Budget budget) {
     if (category == null || budget == null) {
@@ -176,45 +273,262 @@ public class ExpenseManager {
     return budgets.get(category);
   }
 
-  // --- Báo cáo ---
-
-  /** Tóm tắt thu/chi của tháng hiện tại. */
-  public String monthlySummary() {
-    return monthlySummary(YearMonth.now());
+  public void removeBudget(Category category) {
+    budgets.remove(category);
   }
 
-  /** Tóm tắt thu/chi của tháng chỉ định. */
-  public String monthlySummary(YearMonth month) {
-    if (month == null) {
-      throw new IllegalArgumentException("Tháng không được để trống");
+  // --- Tìm kiếm ---
+
+  /** Lọc giao dịch theo điều kiện bất kỳ; mọi hàm tìm kiếm bên dưới đều dùng lại hàm này. */
+  public List<Transaction> filterTransactions(Predicate<Transaction> condition) {
+    if (condition == null) {
+      throw new IllegalArgumentException("Điều kiện lọc không được để trống");
     }
-    double income = 0;
-    double expense = 0;
+    List<Transaction> result = new ArrayList<>();
     for (Transaction tx : transactions) {
-      if (!YearMonth.from(tx.getDate()).equals(month)) {
-        continue;
-      }
-      if (tx.getType() == TransactionType.INCOME) {
-        income += tx.getAmount();
-      } else {
-        expense += tx.getAmount();
+      if (condition.test(tx)) {
+        result.add(tx);
       }
     }
-    return String.format("Tháng %s | Thu: %,.0f VND | Chi: %,.0f VND | Còn lại: %,.0f VND",
-            month, income, expense, income - expense);
+    return result;
   }
 
   /**
-   * Thống kê tổng số tiền theo từng danh mục. Giá trị luôn dương (tổng chi với
-   * danh mục chi, tổng thu với danh mục thu) nên dùng trực tiếp được cho
-   * {@link Budget#isExceeded(double)}.
+   * Tìm theo từ khoá, khớp một phần và không phân biệt hoa thường, quét qua mã
+   * giao dịch, ghi chú, tên danh mục và tên ví. Từ khoá rỗng trả về tất cả.
+   */
+  public List<Transaction> searchTransactions(String keyword) {
+    if (keyword == null || keyword.isBlank()) {
+      return new ArrayList<>(transactions);
+    }
+    String needle = keyword.trim().toLowerCase(Locale.ROOT);
+    return filterTransactions(tx -> containsIgnoreCase(tx.getId(), needle)
+            || containsIgnoreCase(tx.getNote(), needle)
+            || containsIgnoreCase(tx.getCategory().getName(), needle)
+            || containsIgnoreCase(tx.getWallet().getName(), needle));
+  }
+
+  public List<Transaction> findTransactionsByCategory(Category category) {
+    if (category == null) {
+      throw new IllegalArgumentException("Danh mục không được để trống");
+    }
+    return filterTransactions(tx -> tx.getCategory().equals(category));
+  }
+
+  /** Trả về danh sách rỗng nếu không có ví nào tên như vậy. */
+  public List<Transaction> findTransactionsByWallet(String walletName) {
+    if (walletName == null || walletName.isBlank()) {
+      throw new IllegalArgumentException("Tên ví không được để trống");
+    }
+    String target = walletName.trim();
+    return filterTransactions(tx -> tx.getWallet().getName().equalsIgnoreCase(target));
+  }
+
+  public List<Transaction> findTransactionsByType(TransactionType type) {
+    if (type == null) {
+      throw new IllegalArgumentException("Loại giao dịch không được để trống");
+    }
+    return filterTransactions(tx -> tx.getType() == type);
+  }
+
+  /** Lọc theo khoảng ngày, tính cả hai đầu mút; truyền null để bỏ giới hạn một phía. */
+  public List<Transaction> findTransactionsByDateRange(LocalDate from, LocalDate to) {
+    if (from != null && to != null && from.isAfter(to)) {
+      throw new IllegalArgumentException("Ngày bắt đầu phải trước ngày kết thúc");
+    }
+    return filterTransactions(tx -> (from == null || !tx.getDate().isBefore(from))
+            && (to == null || !tx.getDate().isAfter(to)));
+  }
+
+  public List<Transaction> findTransactionsByMonth(YearMonth month) {
+    requireMonth(month);
+    return filterTransactions(tx -> YearMonth.from(tx.getDate()).equals(month));
+  }
+
+  /** Lọc theo khoảng số tiền, tính cả hai đầu mút. */
+  public List<Transaction> findTransactionsByAmountRange(double min, double max) {
+    if (min < 0) {
+      throw new IllegalArgumentException("Số tiền nhỏ nhất không được âm");
+    }
+    if (min > max) {
+      throw new IllegalArgumentException("Số tiền nhỏ nhất phải không lớn hơn số tiền lớn nhất");
+    }
+    return filterTransactions(tx -> tx.getAmount() >= min && tx.getAmount() <= max);
+  }
+
+  private static boolean containsIgnoreCase(String value, String lowercaseNeedle) {
+    return value != null && value.toLowerCase(Locale.ROOT).contains(lowercaseNeedle);
+  }
+
+  // --- Thống kê thu chi ---
+
+  public double totalIncome() {
+    return sumAmount(TransactionType.INCOME, null);
+  }
+
+  public double totalIncome(YearMonth month) {
+    return sumAmount(TransactionType.INCOME, requireMonth(month));
+  }
+
+  public double totalExpense() {
+    return sumAmount(TransactionType.EXPENSE, null);
+  }
+
+  public double totalExpense(YearMonth month) {
+    return sumAmount(TransactionType.EXPENSE, requireMonth(month));
+  }
+
+  /** Chênh lệch tổng thu - tổng chi trên toàn bộ dữ liệu. */
+  public double netAmount() {
+    return totalIncome() - totalExpense();
+  }
+
+  public double netAmount(YearMonth month) {
+    requireMonth(month);
+    return totalIncome(month) - totalExpense(month);
+  }
+
+  /** Tổng số dư đang có trong mọi ví. */
+  public double totalWalletBalance() {
+    double total = 0;
+    for (Wallet wallet : wallets) {
+      total += wallet.getBalance();
+    }
+    return total;
+  }
+
+  /** Báo cáo thu/chi của tháng hiện tại. */
+  public MonthlyReport monthlyReport() {
+    return monthlyReport(YearMonth.now());
+  }
+
+  public MonthlyReport monthlyReport(YearMonth month) {
+    requireMonth(month);
+    return new MonthlyReport(month, totalIncome(month), totalExpense(month));
+  }
+
+  /** Bản in nhanh của {@link #monthlyReport()} cho console. */
+  public String monthlySummary() {
+    return monthlyReport().toString();
+  }
+
+  public String monthlySummary(YearMonth month) {
+    return monthlyReport(month).toString();
+  }
+
+  /**
+   * Tổng số tiền theo từng danh mục trên toàn bộ dữ liệu. Giá trị luôn dương
+   * (tổng chi với danh mục chi, tổng thu với danh mục thu) nên dùng trực tiếp
+   * được cho {@link Budget#isExceeded(double)}.
    */
   public Map<Category, Double> statisticsByCategory() {
-    Map<Category, Double> result = new HashMap<>();
+    return sumByCategory(null);
+  }
+
+  /** Như trên nhưng chỉ tính các giao dịch trong tháng chỉ định. */
+  public Map<Category, Double> statisticsByCategory(YearMonth month) {
+    return sumByCategory(requireMonth(month));
+  }
+
+  /** Chênh lệch thu - chi của từng ví; dương nghĩa là tiền vào nhiều hơn tiền ra. */
+  public Map<Wallet, Double> statisticsByWallet() {
+    Map<Wallet, Double> result = new LinkedHashMap<>();
+    for (Wallet wallet : wallets) {
+      result.put(wallet, 0.0);
+    }
     for (Transaction tx : transactions) {
+      result.merge(tx.getWallet(), tx.getSignedAmount(), Double::sum);
+    }
+    return result;
+  }
+
+  /** Chênh lệch thu - chi theo từng tháng, sắp xếp tăng dần theo thời gian. */
+  public Map<YearMonth, Double> statisticsByMonth() {
+    Map<YearMonth, Double> result = new TreeMap<>();
+    for (Transaction tx : transactions) {
+      result.merge(YearMonth.from(tx.getDate()), tx.getSignedAmount(), Double::sum);
+    }
+    return result;
+  }
+
+  /**
+   * Số tiền đã dùng cho danh mục trong chu kỳ hiện tại của ngân sách, tính từ
+   * đầu chu kỳ tới hôm nay. Giao dịch ghi ngày tương lai không được tính.
+   */
+  public double spentInCurrentPeriod(Category category) {
+    Budget budget = budgets.get(category);
+    if (budget == null) {
+      throw new IllegalArgumentException("Danh mục " + category + " chưa có ngân sách");
+    }
+    LocalDate today = LocalDate.now();
+    LocalDate start = periodStart(budget.getPeriod(), today);
+    double total = 0;
+    for (Transaction tx : transactions) {
+      if (tx.getCategory().equals(category)
+              && !tx.getDate().isBefore(start)
+              && !tx.getDate().isAfter(today)) {
+        total += tx.getAmount();
+      }
+    }
+    return total;
+  }
+
+  /** Danh mục chưa đặt ngân sách thì coi như không vượt. */
+  public boolean isOverBudget(Category category) {
+    Budget budget = budgets.get(category);
+    return budget != null && budget.isExceeded(spentInCurrentPeriod(category));
+  }
+
+  public List<Category> categoriesOverBudget() {
+    List<Category> result = new ArrayList<>();
+    for (Category category : budgets.keySet()) {
+      if (isOverBudget(category)) {
+        result.add(category);
+      }
+    }
+    return result;
+  }
+
+  private double sumAmount(TransactionType type, YearMonth month) {
+    double total = 0;
+    for (Transaction tx : transactions) {
+      if (tx.getType() != type) {
+        continue;
+      }
+      if (month != null && !YearMonth.from(tx.getDate()).equals(month)) {
+        continue;
+      }
+      total += tx.getAmount();
+    }
+    return total;
+  }
+
+  private Map<Category, Double> sumByCategory(YearMonth month) {
+    Map<Category, Double> result = new LinkedHashMap<>();
+    for (Transaction tx : transactions) {
+      if (month != null && !YearMonth.from(tx.getDate()).equals(month)) {
+        continue;
+      }
       result.merge(tx.getCategory(), tx.getAmount(), Double::sum);
     }
     return result;
+  }
+
+  /** Mốc bắt đầu chu kỳ đang diễn ra, tính theo {@code today}. */
+  private static LocalDate periodStart(Period period, LocalDate today) {
+    return switch (period) {
+      case DAILY -> today;
+      case WEEKLY -> today.with(DayOfWeek.MONDAY);
+      case MONTHLY -> today.withDayOfMonth(1);
+      case YEARLY -> today.withDayOfYear(1);
+    };
+  }
+
+  private static YearMonth requireMonth(YearMonth month) {
+    if (month == null) {
+      throw new IllegalArgumentException("Tháng không được để trống");
+    }
+    return month;
   }
 
   // --- Persistence ---
@@ -236,14 +550,17 @@ public class ExpenseManager {
   }
 
   /**
-   * Nạp giao dịch từ file, thay thế danh sách hiện tại. Đi qua addTransaction để
-   * file hỏng (trùng mã giao dịch) bị phát hiện ngay thay vì lọt vào bộ nhớ.
+   * Nạp giao dịch từ file, thay thế danh sách hiện tại. Cố tình không đi qua
+   * addTransaction: số dư trong file ví đã là số dư cuối cùng, áp lại các giao
+   * dịch lần nữa sẽ trừ tiền hai lần. Việc kiểm tra trùng mã vẫn giữ để file
+   * hỏng bị phát hiện ngay thay vì lọt vào bộ nhớ.
    */
   public void loadTransactions(String path) throws IOException {
     List<Transaction> loaded = requireTransactionStorage().load(path);
     transactions.clear();
     for (Transaction tx : loaded) {
-      addTransaction(tx);
+      requireNewTransaction(tx);
+      transactions.add(tx);
     }
     resolveWallets();
     registerLoadedCategories();

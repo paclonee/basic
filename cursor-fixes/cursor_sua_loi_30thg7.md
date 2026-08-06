@@ -157,3 +157,125 @@ Thêm một file nhỏ `JsonFields` chứa `optionalString`/`optionalDouble` dù
 `docs/class-diagram.md` không còn trong repo nữa — commit `b5b4caf` ("Hoan thien lop truu tuong") của bạn đã xoá nó, 266 dòng. Chỉ còn `docs/class-diagram.png`. Tôi không tự khôi phục vì không rõ bạn xoá có chủ ý hay không. Nếu là vô tình thì lấy lại được bằng `git checkout fc9e309 -- docs/class-diagram.md`, và lúc đó tôi sẽ cập nhật phần `Storage` trong sơ đồ cho khớp với `Storage<T>` cùng hai adapter mới.
 
 Vẫn chưa commit gì cả. Hiện có 16 file sửa và 2 file mới (`JsonFields.java`, `WalletJsonAdapter.java`).
+
+
+---
+
+**Cursor**
+
+`Wallet` **không phải interface** — nó là abstract class:
+
+```9:12:src/main/java/com/example/personalexpensemanager/model/Wallet.java
+public abstract class Wallet {
+
+  private String name;
+  private double balance;
+```
+
+Thật ra trong toàn bộ code của bạn chỉ có **đúng một** interface, là `Storage`. Còn `Transaction` và `Wallet` đều là abstract class.
+
+Và khi tôi viết "thêm một interface riêng cho ví", tôi đang nói về interface **lưu trữ** ví, tức là thứ nằm ở tầng `storage`, chứ không phải interface mô tả bản thân cái ví. Hai thứ khác tầng hoàn toàn:
+
+
+| Thứ                           | Là gì          | Trả lời câu hỏi                                       |
+| ----------------------------- | -------------- | ----------------------------------------------------- |
+| `Wallet` (package `model`)    | abstract class | Một cái ví *là gì*: có tên, có số dư, nạp/rút thế nào |
+| `Storage` (package `storage`) | interface      | *Ghi/đọc* một danh sách đối tượng ra file thế nào     |
+
+
+Vấn đề lúc đó nằm ở cột thứ hai. `Storage` cũ hardcode `Transaction`:
+
+```java
+public interface Storage {
+  void save(List<Transaction> transactions, String path) throws IOException;
+  List<Transaction> load(String path) throws IOException;
+}
+```
+
+Nên dù `Wallet` có tồn tại đầy đủ trong `model`, **không có đường nào để ghi danh sách ví xuống file cả** — số dư ví chỉ sống trong RAM, tắt app là mất. Việc `Wallet` là abstract class hay interface không giúp gì cho chuyện đó.
+
+Hai hướng tôi đưa ra khi đó là: hoặc tổng quát hoá thành `Storage<T>`, hoặc viết thêm một interface thứ hai chỉ dành cho ví, đại loại như thế này:
+
+```java
+public interface WalletStorage {
+  void save(List<Wallet> wallets, String path) throws IOException;
+  List<Wallet> load(String path) throws IOException;
+}
+```
+
+Bạn đã chọn hướng tổng quát hoá, nên giờ `Storage<Wallet>` chính là "interface lưu trữ ví" đó, chỉ là không cần viết thêm interface mới:
+
+```27:28:src/main/java/com/example/personalexpensemanager/manager/ExpenseManager.java
+  private Storage<Transaction> transactionStorage;
+  private Storage<Wallet> walletStorage;
+```
+
+Hướng generic thắng vì với `WalletStorage` riêng, mỗi lần thêm một loại dữ liệu cần lưu (ví dụ `Budget` sau này) bạn lại phải viết thêm một interface gần như y hệt. Còn với `Storage<T>` thì chỉ cần `Storage<Budget>`, không thêm dòng interface nào.
+
+Nhân đây nói thêm về câu hỏi ngầm trong thắc mắc của bạn: `Wallet` **không thể** là interface, vì nó giữ state (`name`, `balance` ở dòng 11-12) và có constructor validate. Interface trong Java không giữ được field instance, nên nếu đổi `Wallet` thành interface thì `CashWallet`, `BankAccount`, `EWallet` mỗi lớp phải tự khai báo lại `name`/`balance` cùng toàn bộ logic `deposit`/`withdraw` — lặp code ba lần. Đây đúng là ranh giới kinh điển: **abstract class khi cần chia sẻ state và code dùng chung, interface khi chỉ cần định nghĩa hợp đồng**. `Storage` không giữ state nào nên nó là interface, hoàn toàn hợp lý.
+
+---
+
+**Cursor**
+
+Tôi phải nói thẳng một điều trước, vì nó quan trọng hơn phần giải thích: hiện tại tắt app mở lại vẫn mất dữ liệu. Thay đổi đó chỉ tạo ra khả năng lưu, chứ chưa tự động lưu.
+
+Tôi vừa tìm khắp src/main/java: saveData và loadData chỉ được định nghĩa trong ExpenseManager (dòng 223 và 229), không có một chỗ nào gọi chúng. PersonalExpenseManagerApp.start() cũng chỉ load file FXML rồi hiện cửa sổ, thậm chí chưa tạo ExpenseManager nào cả.
+
+Cơ chế thực sự
+Mọi object Java sống trong RAM. Tắt app là RAM mất sạch, không có cách nào tránh. Muốn dữ liệu sống sót thì phải làm hai việc: lúc thoát ghi ra file, và lúc mở đọc lại từ file. Mỗi việc phải có ai đó gọi, không tự xảy ra.
+
+Việc tổng quát hoá Storage<T> giải quyết vấn đề "có gì để mà ghi", chứ không giải quyết "ai gọi lệnh ghi".
+
+Trước khi sửa: gọi save cũng vẫn mất số dư
+Đây mới là chỗ tổng quát hoá thực sự thay đổi tình hình. Giả sử hồi đó bạn đã gọi save() đầy đủ, dữ liệu ví vẫn mất, vì file JSON giao dịch chỉ lưu tên ví dưới dạng một chuỗi:
+
+
+TransactionJsonAdapter.java
+Lines 30-30
+obj.addProperty("walletName", tx.getWallet().getName());
+Số dư, loại ví, tên ngân hàng, provider — không có gì được ghi. Nên lúc đọc lại, adapter buộc phải dựng một cái ví giả:
+
+
+TransactionJsonAdapter.java
+Lines 58-60
+// Ví chỉ phục hồi tạm bằng tên (balance = 0); ExpenseManager sẽ gán lại
+// đúng đối tượng Wallet thật sau khi nạp xong danh sách ví.
+Wallet placeholderWallet = new CashWallet(walletName, 0);
+Mọi ví trở thành CashWallet với số dư 0, kể cả cái vốn là BankAccount có 5 triệu. Và cái comment "ExpenseManager sẽ gán lại đúng đối tượng Wallet thật" khi đó là một lời hứa không thể thực hiện, vì Storage bị khoá cứng vào Transaction nên không có đường nào đọc danh sách ví thật từ file lên. Đó chính là lý do tôi nói "số dư ví không được ghi xuống file".
+
+Sau khi sửa
+Giờ ví có file riêng với đầy đủ thông tin, target/smoke-wallets.json lúc tôi test trông như thế này:
+
+{
+  "type": "BANK",
+  "name": "Vietcombank",
+  "balance": 5000000.0,
+  "bankName": "VCB",
+  "accountNumber": "0123456789",
+  "transactionFee": 1100.0
+}
+Nên loadWallets dựng lại được đúng BankAccount với đúng 5 triệu, rồi resolveWallets() đổi placeholder trong từng giao dịch sang đối tượng ví thật đó. Lời hứa trong comment giờ mới thành hiện thực — test "SO DU VI SONG SOT qua save/load" và "T2 trỏ sang đúng instance ví đã nạp" kiểm tra chính xác hai bước này.
+
+Phần còn thiếu để bạn thật sự "tắt máy mở lại"
+Cần một chỗ gọi. Đại loại như thế này trong PersonalExpenseManagerApp — tôi chỉ phác ra chứ đang ở Ask mode nên không sửa file:
+
+private final ExpenseManager manager =
+    new ExpenseManager(JsonStorage.forTransactions(), JsonStorage.forWallets());
+@Override
+public void start(Stage stage) throws IOException {
+  manager.loadData("data/transactions.json", "data/wallets.json");
+  // ... dựng scene, truyền manager vào controller ...
+  stage.setOnCloseRequest(event -> {
+    try {
+      manager.saveData("data/transactions.json", "data/wallets.json");
+    } catch (IOException e) {
+      // hiện Alert cho người dùng
+    }
+  });
+}
+loadData an toàn khi chạy lần đầu: JsonStorage.load thấy file chưa tồn tại thì trả về list rỗng chứ không nổ. Nhớ tạo sẵn thư mục data/, vì Files.newBufferedWriter không tự tạo thư mục cha.
+
+Ngoài ra MainController hiện chỉ set một cái label, chưa có đường nào để người dùng thêm giao dịch, nên kể cả wire xong save/load thì vẫn chưa có dữ liệu gì để mà lưu. Muốn tôi làm phần wiring này thì bạn chuyển sang Agent mode nhé.
+
+---

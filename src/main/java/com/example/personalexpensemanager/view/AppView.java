@@ -1,22 +1,41 @@
 package com.example.personalexpensemanager.view;
 
+import com.example.personalexpensemanager.controller.MainController;
 import com.example.personalexpensemanager.manager.ExpenseManager;
+import java.io.IOException;
+import java.net.URL;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 
 /**
- * Lớp cầu nối / wrapper cho giao diện JavaFX.
- * Logic UI chi tiết nằm ở FXML + controller.
+ * Lớp cầu nối cho giao diện JavaFX: nạp FXML rồi tiêm {@link ExpenseManager} vào
+ * controller. Nhờ vậy {@code PersonalExpenseManagerApp} không phải biết gì về FXML,
+ * còn controller không phải tự dựng lấy dữ liệu nghiệp vụ.
  */
 public class AppView {
+
+  private static final String MAIN_VIEW = "/com/example/personalexpensemanager/main-view.fxml";
 
   private final ExpenseManager expenseManager;
 
   public AppView(ExpenseManager expenseManager) {
+    if (expenseManager == null) {
+      throw new IllegalArgumentException("ExpenseManager không được để trống");
+    }
     this.expenseManager = expenseManager;
   }
 
-  /** Khởi tạo / gắn dữ liệu cho scene JavaFX (gọi từ Application). */
-  public void bind() {
-    // TODO: gắn ExpenseManager với controller / scene
+  /** Dựng cây giao diện màn hình chính và gắn dữ liệu vào đó. */
+  public Parent load() throws IOException {
+    URL location = AppView.class.getResource(MAIN_VIEW);
+    if (location == null) {
+      throw new IllegalStateException("Không tìm thấy file giao diện " + MAIN_VIEW);
+    }
+    FXMLLoader loader = new FXMLLoader(location);
+    Parent root = loader.load();
+    MainController controller = loader.getController();
+    controller.setExpenseManager(expenseManager);
+    return root;
   }
 
   public ExpenseManager getExpenseManager() {

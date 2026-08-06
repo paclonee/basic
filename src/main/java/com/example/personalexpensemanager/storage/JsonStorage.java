@@ -64,7 +64,12 @@ public class JsonStorage<T> implements Storage<T> {
 
   @Override
   public void save(List<T> items, String path) throws IOException {
-    try (Writer writer = Files.newBufferedWriter(Path.of(path), StandardCharsets.UTF_8)) {
+    Path file = Path.of(path);
+    Path folder = file.getParent();
+    if (folder != null) {
+      Files.createDirectories(folder); // lần chạy đầu chưa có thư mục data/
+    }
+    try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
       gson.toJson(items, listType, writer);
     }
   }
