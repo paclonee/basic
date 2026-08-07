@@ -59,6 +59,8 @@
       <HBox spacing="10.0">
         <TextField fx:id="searchField" HBox.hgrow="ALWAYS"
                    promptText="Tìm theo mã, ghi chú, danh mục hoặc tên ví..."/>
+        <Button fx:id="exportReportButton" text="Xuất báo cáo tháng"
+                onAction="#handleExportReport"/>
         <Button fx:id="deleteButton" text="Xoá giao dịch đã chọn"
                 onAction="#handleDeleteTransaction"/>
       </HBox>

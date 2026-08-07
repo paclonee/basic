@@ -17,4 +17,5 @@ module com.example.personalexpensemanager {
   exports com.example.personalexpensemanager.storage;
   exports com.example.personalexpensemanager.manager;
   exports com.example.personalexpensemanager.view;
+  exports com.example.personalexpensemanager.util;
 }

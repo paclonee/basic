@@ -11,6 +11,10 @@ import com.example.personalexpensemanager.model.Expense;
 import com.example.personalexpensemanager.model.Income;
 import com.example.personalexpensemanager.model.Transaction;
 import com.example.personalexpensemanager.model.Wallet;
+import com.example.personalexpensemanager.util.FxBackground;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -18,6 +22,7 @@ import java.util.List;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
@@ -41,15 +46,18 @@ public class MainController {
 
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
+  // FX
   @FXML private Label summaryLabel;
   @FXML private Label totalBalanceLabel;
   @FXML private Label statusLabel;
 
+  // 
   @FXML private ListView<Wallet> walletList;
   @FXML private TextField walletNameField;
   @FXML private ComboBox<WalletType> walletTypeBox;
   @FXML private TextField walletBalanceField;
 
+  // 
   @FXML private TextField searchField;
   @FXML private TableView<Transaction> transactionTable;
   @FXML private TableColumn<Transaction, String> dateColumn;
@@ -67,7 +75,13 @@ public class MainController {
   @FXML private TextField detailField;
   @FXML private TextField noteField;
 
+  @FXML private Button addWalletButton;
+  @FXML private Button deleteButton;
+  @FXML private Button addTransactionButton;
+  @FXML private Button exportReportButton;
+
   private ExpenseManager manager;
+  private boolean busy;
 
   @FXML
   private void initialize() {
@@ -103,10 +117,39 @@ public class MainController {
     refreshAll();
   }
 
+  /**
+   * Khoá nút thao tác khi đang chạy việc nặng trên luồng nền (load/export).
+   * Trên web/mobile tương đương disable nút + hiện spinner/"Loading...".
+   */
+  public void setBusy(boolean busy, String message) {
+    this.busy = busy;
+    addWalletButton.setDisable(busy);
+    deleteButton.setDisable(busy);
+    addTransactionButton.setDisable(busy);
+    exportReportButton.setDisable(busy);
+    if (message != null) {
+      statusLabel.setStyle("-fx-text-fill: #52606d;");
+      statusLabel.setText(message);
+    }
+  }
+
+  /** Gọi từ luồng UI sau khi load file xong để vẽ lại danh sách. */
+  public void onDataReady(String infoMessage) {
+    seedDefaultCategories();
+    refreshAll();
+    setBusy(false, null);
+    if (infoMessage != null) {
+      showInfo(infoMessage);
+    }
+  }
+
   // --- Thao tác của người dùng ---
 
   @FXML
   private void handleAddTransaction() {
+    if (busy) {
+      return;
+    }
     try {
       String id = nextTransactionId();
       double amount = parseMoney(amountField.getText(), "số tiền");
@@ -133,6 +176,9 @@ public class MainController {
 
   @FXML
   private void handleDeleteTransaction() {
+    if (busy) {
+      return;
+    }
     Transaction selected = transactionTable.getSelectionModel().getSelectedItem();
     if (selected == null) {
       showError("Hãy chọn một giao dịch trong bảng trước khi xoá");
@@ -149,6 +195,9 @@ public class MainController {
 
   @FXML
   private void handleAddWallet() {
+    if (busy) {
+      return;
+    }
     try {
       String name = walletNameField.getText();
       double balance = parseOptionalMoney(walletBalanceField.getText());
@@ -160,6 +209,47 @@ public class MainController {
       showInfo("Đã thêm ví " + name);
     } catch (RuntimeException e) {
       showError(e.getMessage());
+    }
+  }
+
+  /**
+   * Xuất báo cáo tháng ra file trên luồng nền — UI vẫn bấm được chỗ khác
+   * (ở đây ta khoá nút để tránh xuất trùng), không bị đơ khi ghi đĩa chậm.
+   */
+  @FXML
+  private void handleExportReport() {
+    if (busy || manager == null) {
+      return;
+    }
+    setBusy(true, "Đang xuất báo cáo...");
+    Path reportPath = Path.of("data", "monthly-report.txt");
+    FxBackground.run(
+            "export-report",
+            true,
+            () -> {
+              String content = manager.monthlySummary() + System.lineSeparator();
+              Files.createDirectories(reportPath.getParent());
+              Files.writeString(reportPath, content);
+              return reportPath.toAbsolutePath().toString();
+            },
+            absolutePath -> {
+              setBusy(false, null);
+              showInfo("Đã xuất báo cáo: " + absolutePath);
+              revealInExplorer(Path.of(absolutePath));
+            },
+            error -> {
+              setBusy(false, null);
+              showError("Xuất báo cáo thất bại: " + error.getMessage());
+            });
+  }
+
+  /** Mở thư mục chứa file và chọn sẵn file đó trong Windows Explorer. */
+  private static void revealInExplorer(Path file) {
+    try {
+      String absolute = file.toAbsolutePath().normalize().toString();
+      new ProcessBuilder("explorer.exe", "/select," + absolute).start();
+    } catch (IOException ignored) {
+      // Xuất file vẫn thành công; chỉ không mở được Explorer.
     }
   }
 

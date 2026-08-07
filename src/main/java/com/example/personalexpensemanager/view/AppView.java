@@ -17,6 +17,8 @@ public class AppView {
   private static final String MAIN_VIEW = "/com/example/personalexpensemanager/main-view.fxml";
 
   private final ExpenseManager expenseManager;
+  private Parent root;
+  private MainController controller;
 
   public AppView(ExpenseManager expenseManager) {
     if (expenseManager == null) {
@@ -32,10 +34,17 @@ public class AppView {
       throw new IllegalStateException("Không tìm thấy file giao diện " + MAIN_VIEW);
     }
     FXMLLoader loader = new FXMLLoader(location);
-    Parent root = loader.load();
-    MainController controller = loader.getController();
+    root = loader.load();
+    controller = loader.getController();
     controller.setExpenseManager(expenseManager);
     return root;
+  }
+
+  public MainController getController() {
+    if (controller == null) {
+      throw new IllegalStateException("Gọi load() trước khi lấy controller");
+    }
+    return controller;
   }
 
   public ExpenseManager getExpenseManager() {
